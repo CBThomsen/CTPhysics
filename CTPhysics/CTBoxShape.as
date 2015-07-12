@@ -40,7 +40,7 @@ package CTPhysics {
 				var n = new CTVector(vertices[i+1].x - vertices[i].x, vertices[i+1].y - vertices[i].y).leftNormal()
 				normals.push(n)
 			}
-			normals.push(new CTVector(vertices[i].x - vertices[i].x, vertices[0].y - vertices[0].y).leftNormal())
+			normals.push(new CTVector(vertices[0].x - vertices[i].x, vertices[i].y - vertices[i].y).leftNormal())
 			return normals;
 		}
 		public function getVertices() {

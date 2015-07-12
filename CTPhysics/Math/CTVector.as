@@ -8,10 +8,16 @@ package CTPhysics.Math {
             y = b;
         }
         public function leftNormal() {
-            var tempX = x
+           var tempX = x
             x = y
-            y = -1 * tempX
-            return this
+            y = tempX * -1
+            return  this.normalize();
+        }
+        public function rightNormal() {
+           var tempX = x
+            x = y * -1
+            y = tempX
+            return  this.normalize();
         }
         public function sum(otherVector:CTVector):CTVector {
             x += otherVector.x;
@@ -27,7 +33,7 @@ package CTPhysics.Math {
                 return (x * otherVector.x) + (y * otherVector.y)
         }
         public function vectorCrossProduct(otherVector:CTVector):Number {
-                return (x * otherVector.x) - (y * otherVector.y)
+                return (x * otherVector.y) - (y * otherVector.x)
         }
         public function times(num:Number) : CTVector {
             x *= num
@@ -47,14 +53,17 @@ package CTPhysics.Math {
             return this
         }
         public function crossProduct(num:Number) {
-            y *= num
             x *= -num
+            y *= num
             return this
         }
         public function reverseCrossProduct(num:Number) {
-            y *= -num
             x *= num
+            y *= -num
             return this
+        }
+        public function clone() {
+            return new CTVector(x, y)
         }
     }
 }

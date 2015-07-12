@@ -12,7 +12,7 @@ package CTPhysics {
 		public var friction:Number = 0.2
 		public var restitution:Number = 0.1
 
-		public var rotation:Number = 0 // radians
+		public var rotation:Number = 0.1 // radians
 		private var oldRotation:Number = 0
 		public var angularVelocity:Number = 0
 		public var torque:Number = 0
@@ -49,19 +49,18 @@ package CTPhysics {
 		}
 		public function step() {
 			//if(mass == 0) return
-			ctShape.updatePosition();
 
 			velocity.y += mass * CTWorld.CTGravity * CTWorld.CTTimeStep
 			angularVelocity += torque * (1/inertia) * CTWorld.CTTimeStep
+			x += velocity.x * CTWorld.CTTimeStep
+			y += velocity.y * CTWorld.CTTimeStep
 
 			rotation += angularVelocity * CTWorld.CTTimeStep
 			//if(rotation != oldRotation) {
-				ctShape.rotateVertices(rotation)
 				/*oldRotation = rotation
 			}*/
-
-			x += velocity.x * CTWorld.CTTimeStep
-			y += velocity.y * CTWorld.CTTimeStep
+			ctShape.updatePosition();
+			ctShape.rotateVertices(rotation)
 		}
 	}
 }
