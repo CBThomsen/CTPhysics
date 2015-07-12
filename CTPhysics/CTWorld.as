@@ -2,6 +2,8 @@ package CTPhysics {
 	import CTPhysics.Math.CTVector
 
 	public class CTWorld {
+
+		private var collisionPairs:Array = new Array();
 		private var bodyArray:Array = new Array();
 
 		public static var CTGravity:Number = 0
@@ -29,16 +31,25 @@ package CTPhysics {
 					bodyArray[i].ctUserData.rotation = bodyArray[i].rotation * 180/Math.PI
 				}
 			}
-
 			broadPhase();
 		}
 		public function broadPhase() {
+			collisionPairs = []
+
 			for(var a:int = 0; a < bodyArray.length; a++) {
 				for(var b:int = 0; b < bodyArray.length; b++) {
 					if(bodyArray[a] == bodyArray[b]) continue
+					for(var c:int = 0; c < collisionPairs.length; c++) {
+						if(bodyArray[a] == collisionPairs[c][0] && bodyArray[b] == collisionPairs[c][1]
+						   || bodyArray[a] == collisionPairs[c][1] && bodyArray[b] == collisionPairs[c][0]) {
+							continue
+						}
+					}
+
+					collisionPairs.push(new Array(bodyArray[a], bodyArray[b]))
 
 					if(checkCollision(bodyArray[a], bodyArray[b])) {
-						collisionResponse(bodyArray[a], bodyArray[b])
+						//collisionResponse(bodyArray[a], bodyArray[b])
 						if(bodyArray[a].mass != 0) {
 							bodyArray[a].ctUserData.gotoAndStop(2)
 						}
@@ -50,102 +61,123 @@ package CTPhysics {
 				}
 			}
 		}
+		public var bodyA_normals:Array
+		public var bodyB_normals:Array
+		public var resultP1:Object
+		public var resultP2:Object
+		public var resultQ1:Object
+		public var resultQ2:Object
 		public function checkCollision(bodyA, bodyB) {
 			//SAT check
-			var axis:CTVector = new CTVector(1, -1).normalize();
+			bodyA_normals = bodyA.ctShape.getNormals();
+			bodyB_normals = bodyB.ctShape.getNormals();
+
 			var bodyA_vertices:Array = bodyA.ctShape.getVertices();
 			var bodyB_vertices:Array = bodyB.ctShape.getVertices();
 
-			//Finding the min and max projections for shape A and B
-			var minProjA:Number = bodyA_vertices[0].dot(axis)
-			var maxProjA:Number = bodyA_vertices[0].dot(axis)
-			var curProj:Number = 0
-			for(var i:int = 1; i < bodyA_vertices.length; i++) {
-				curProj = bodyA_vertices[i].dot(axis)
-				if(minProjA > curProj) {
-					minProjA = curProj
-				}
-				if(curProj > maxProjA) {
-					maxProjA = curProj
+			//Variables for finding the lowest overlap and the normal that it belongs to
+			//Info is used for collision resolution
+			var lowestOverlap:Number = 0
+			var overlapNormal:CTVector
+			var lowestMaxProj:Number
+			var highestMinProj:Number
+
+			//Project along all the edges and see if there's a gap between min and max
+			resultP1 = getMinMaxProjection(bodyA_vertices, bodyA_normals[0])
+			resultP2 = getMinMaxProjection(bodyB_vertices, bodyA_normals[0])
+			var separate_P:Boolean = resultP1.max_proj < resultP2.minProj || resultP2.maxProj < resultP1.minProj
+			if(separate_P) return false
+
+			resultQ1 = getMinMaxProjection(bodyA_vertices, bodyA_normals[1])
+			resultQ2 = getMinMaxProjection(bodyB_vertices, bodyA_normals[1])
+			var separate_Q:Boolean = resultQ1.maxProj < resultQ2.minProj || resultQ2.maxProj < resultQ1.minProj
+			if(separate_Q) return false
+
+			var resultR1:Object = getMinMaxProjection(bodyA_vertices, bodyB_normals[0])
+			var resultR2:Object = getMinMaxProjection(bodyB_vertices, bodyB_normals[0])
+			var separate_R:Boolean = resultR1.maxProj < resultR2.minProj || resultR2.maxProj < resultR1.minProj
+			if(separate_R) return false
+
+			var resultS1:Object = getMinMaxProjection(bodyA_vertices, bodyB_normals[1])
+			var resultS2:Object = getMinMaxProjection(bodyB_vertices, bodyB_normals[1])
+			var separate_S:Boolean = resultS1.maxProj < resultS2.minProj || resultS2.maxProj < resultS1.minProj
+			if(separate_S) return false
+
+			//Find out how much overlap is at the 4 edges and store normal for the lowest overlap
+			var result:Array = new Array()
+			result.push(new Array(resultP1, resultP2, bodyA_normals[0]))
+			result.push(new Array(resultQ1, resultQ2, bodyA_normals[1]))
+			result.push(new Array(resultR1, resultR2, bodyB_normals[0]))
+			result.push(new Array(resultS1, resultS2, bodyB_normals[1]))
+
+			for(var i:int = 0; i < result.length; i++) {
+				//Find det laveste overlap og gem det
+				var currentOverlap = Math.abs(intervalDistance(result[i][0].minProj, result[i][0].maxProj, result[i][1].minProj, result[i][1].maxProj))
+				if(currentOverlap < lowestOverlap || !lowestOverlap) {
+					lowestOverlap = currentOverlap
+					overlapNormal = result[i][2]
+
+					var d:CTVector = bodyA.getPositionVector().subtract(bodyB.getPositionVector())
+					if(d.dot(overlapNormal) < 0) {
+						overlapNormal = new CTVector(-overlapNormal.x, -overlapNormal.y)
+					}
 				}
 			}
-			var minProjB:Number = bodyB_vertices[0].dot(axis)
-			var maxProjB:Number = bodyB_vertices[0].dot(axis)
-			for(var j:int = 1; j < bodyB_vertices.length; j++) {
-				curProj = bodyB_vertices[j].dot(axis)
-				if(minProjB > curProj) {
-					minProjB = curProj
-				}
-				if(curProj > maxProjB) {
-					maxProjB = curProj
-				}
-			}
-			var isApart:Boolean = maxProjB < minProjA || maxProjA < minProjB
-			if(isApart) {
-				return false
-			} else {
-				return true
-			}
+			collisionResponse(bodyA, bodyB, overlapNormal, lowestOverlap)
+			collisionNormal = overlapNormal
+			overlapLength = lowestOverlap
 
-
-
-			//Simple AABB check
-			/*if(bodyA.x + bodyA.ctShape.halfWidth < bodyB.x - bodyB.ctShape.halfWidth || bodyA.x - bodyA.ctShape.halfWidth > bodyB.x + bodyB.ctShape.halfWidth) return false
-			if(bodyA.y + bodyA.ctShape.halfHeight < bodyB.y - bodyB.ctShape.halfHeight || bodyA.y - bodyA.ctShape.halfHeight > bodyB.y + bodyB.ctShape.halfHeight) return false
-			return true*/
+			return true
 		}
-		public function collisionResponse(bodyA, bodyB) {
-			//Calculate overlap / resolution vector
-			var distanceVector:CTVector = new CTVector(bodyB.x - bodyA.x, bodyB.y - bodyA.y)
-			var normal:CTVector = new CTVector(0,0)
-
-			var xOverlap:Number = bodyA.ctShape.halfWidth + bodyB.ctShape.halfWidth - Math.abs(distanceVector.x)
-			var yOverlap:Number = bodyA.ctShape.halfHeight + bodyB.ctShape.halfHeight - Math.abs(distanceVector.y)
-
-
-			//Find normal and penetration
-			var penetration:Number = 0
-
-			if(xOverlap < yOverlap) {
-				if(distanceVector.x < 0) {
-					normal.x = -1
-				} else {
-					normal.x = 1
-				}
-				penetration = xOverlap
+		public function intervalDistance(minA, maxA, minB, maxB) {
+			if(minA < minB) {
+				return minB - maxA
 			} else {
-				if(distanceVector.y < 0) {
-					normal.y = -1
-				} else {
-					normal.y = 1
+				return minA - maxB
+			}
+		}
+
+		public function getMinMaxProjection(vertices, axis) {
+			//Finding the min and max projections for shape A and B
+			var minProj:Number = vertices[0].dot(axis)
+			var maxProj:Number = vertices[0].dot(axis)
+			var curProj:Number = 0
+			for(var i:int = 1; i < vertices.length; i++) {
+				curProj = vertices[i].dot(axis)
+				if(minProj > curProj) {
+					minProj = curProj
 				}
-				penetration = yOverlap
+				if(curProj > maxProj) {
+					maxProj = curProj
+				}
 			}
-
+			return { minProj:minProj, maxProj:maxProj}
+		}
+		public var collisionNormal
+		public var overlapLength
+		public function collisionResponse(bodyA, bodyB, normal, penetration) {
+			normal.normalize();
 			//Calculate impulse
-			var deltaVelocity:CTVector = new CTVector(bodyB.velocity.x - bodyA.velocity.x, bodyB.velocity.y - bodyA.velocity.y)
-			var velocityAlongNormal = deltaVelocity.dot(normal)
-			if(velocityAlongNormal > 0) {
-				return
-			}
-
-			var j = -(1 + Math.min(bodyA.restitution, bodyB.restitution)) * velocityAlongNormal;
+			var j = -(1 + Math.min(bodyA.restitution, bodyB.restitution)) * 3
 			j /= bodyA.invMass + bodyB.invMass
 
-			var impulse:CTVector = new CTVector(j*normal.x, j*normal.y)
+			Main.writeText(j)
+
+			var impulse:CTVector = new CTVector(j*normal.x * penetration, j*normal.y * penetration)
+
 			bodyA.velocity.subtract(new CTVector(impulse.x * bodyA.invMass, impulse.y * bodyA.invMass))
 			bodyB.velocity.sum(new CTVector(impulse.x * bodyB.invMass, impulse.y * bodyB.invMass))
 
 			correctPosition(bodyA, bodyB, normal, penetration)
 		}
 		public function correctPosition(bodyA, bodyB, normal, penetration) {
-			var depth:Number = Math.max(penetration - 0.01, 0) / (bodyA.invMass + bodyB.invMass) * 0.5
+			var depth:Number = Math.max(penetration - 0.01, 0) / (bodyA.invMass + bodyB.invMass) * 0.4
 			var correction:CTVector = new CTVector(normal.x * depth, normal.y * depth)
-			bodyA.x -= bodyA.invMass * correction.x
-			bodyA.y -= bodyA.invMass * correction.y
+			bodyA.x += bodyA.invMass * correction.x
+			bodyA.y += bodyA.invMass * correction.y
 
-			bodyB.x += bodyB.invMass * correction.x
-			bodyB.y += bodyB.invMass * correction.y
+			bodyB.x -= bodyB.invMass * correction.x
+			bodyB.y -= bodyB.invMass * correction.y
 		}
 	}
 }

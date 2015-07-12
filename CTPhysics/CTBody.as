@@ -10,9 +10,9 @@ package CTPhysics {
 		public var invMass:Number = 0
 		public var mass:Number = 0
 		public var friction:Number = 0.2
-		public var restitution:Number = 0.3
+		public var restitution:Number = 0.1
 
-		public var rotation:Number = 0.78// radians
+		public var rotation:Number = 0 // radians
 		private var oldRotation:Number = 0
 		public var angularVelocity:Number = 0
 		public var torque:Number = 0
@@ -43,6 +43,9 @@ package CTPhysics {
 		}
 		public function getShape():CTShape {
 			return ctShape
+		}
+		public function getPositionVector():CTVector {
+			return new CTVector(x, y)
 		}
 		public function step() {
 			//if(mass == 0) return

@@ -7,6 +7,12 @@ package CTPhysics.Math {
             x = a;
             y = b;
         }
+        public function leftNormal() {
+            var tempX = x
+            x = y
+            y = -1 * tempX
+            return this
+        }
         public function sum(otherVector:CTVector):CTVector {
             x += otherVector.x;
             y += otherVector.y;

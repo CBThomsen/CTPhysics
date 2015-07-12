@@ -34,6 +34,15 @@ package CTPhysics {
 				vertices[i].y = yNew + body.y
 			}
 		}
+		public function getNormals() {
+			var normals:Array = new Array();
+			for(var i:int = 0; i < vertices.length-1; i++) {
+				var n = new CTVector(vertices[i+1].x - vertices[i].x, vertices[i+1].y - vertices[i].y).leftNormal()
+				normals.push(n)
+			}
+			normals.push(new CTVector(vertices[i].x - vertices[i].x, vertices[0].y - vertices[0].y).leftNormal())
+			return normals;
+		}
 		public function getVertices() {
 			return vertices;
 		}
